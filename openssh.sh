@@ -2,6 +2,8 @@
 
 # 设置OpenSSH的版本号
 OPENSSH_VERSION="9.8p1"
+MIN_OPENSSH_VERSION="8.5"
+MAX_OPENSSH_VERSION="9.7"
 
 # 检测系统类型
 if [ -f /etc/os-release ]; then
@@ -38,6 +40,9 @@ install_dependencies() {
             sudo yum groupinstall -y "Development Tools"
             sudo yum install -y zlib-devel openssl-devel pam-devel wget ntpdate
             ;;
+        alpine)
+            sudo apk add build-base zlib-dev openssl-dev pam-dev wget ntpdate
+            ;;
         *)
             echo "不支持的操作系统：$OS"
             exit 1
@@ -48,6 +53,15 @@ install_dependencies() {
 # 同步系统时间
 sync_time() {
     sudo ntpdate time.nist.gov
+}
+
+# 检查OpenSSH版本
+check_openssh_version() {
+    CURRENT_VERSION=$(ssh -V 2>&1 | awk '{print $2}' | cut -d'p' -f1)
+    if [[ "$CURRENT_VERSION" < "$MIN_OPENSSH_VERSION" || "$CURRENT_VERSION" > "$MAX_OPENSSH_VERSION" ]]; then
+        echo "OpenSSH版本不在更新范围内。当前版本: $CURRENT_VERSION"
+        exit 1
+    fi
 }
 
 # 下载、编译和安装OpenSSH
@@ -68,6 +82,9 @@ restart_ssh() {
             ;;
         centos|rhel|fedora)
             sudo systemctl restart sshd
+            ;;
+        alpine)
+            sudo rc-service sshd restart
             ;;
         *)
             echo "不支持的操作系统：$OS"
@@ -107,6 +124,7 @@ main() {
     fi
     install_dependencies
     sync_time
+    check_openssh_version
     install_openssh
     restart_ssh
     set_path_priority
