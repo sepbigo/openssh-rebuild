@@ -22,7 +22,7 @@ wait_for_lock() {
 
 # 修复dpkg中断问题
 fix_dpkg() {
-    sudo dpkg --configure -a
+    sudo DEBIAN_FRONTEND=noninteractive dpkg --configure -a
 }
 
 # 安装依赖包
@@ -30,10 +30,11 @@ install_dependencies() {
     wait_for_lock
     case $OS in
         ubuntu|debian)
-            sudo apt update
-            sudo apt install -y build-essential zlib1g-dev libssl-dev libpam0g-dev wget ntpdate
+            sudo DEBIAN_FRONTEND=noninteractive apt-get update
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential zlib1g-dev libssl-dev libpam0g-dev wget ntpdate -o Dpkg::Options::="--force-confnew"
             ;;
         centos|rhel|fedora)
+            sudo yum install -y epel-release
             sudo yum groupinstall -y "Development Tools"
             sudo yum install -y zlib-devel openssl-devel pam-devel wget ntpdate
             ;;
@@ -101,7 +102,9 @@ clean_up() {
 
 # 主函数
 main() {
-    fix_dpkg
+    if [[ $OS == "ubuntu" || $OS == "debian" ]]; then
+        fix_dpkg
+    fi
     install_dependencies
     sync_time
     install_openssh
